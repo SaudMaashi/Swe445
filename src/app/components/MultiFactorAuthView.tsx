@@ -8,6 +8,9 @@ export function MultiFactorAuthView() {
   const [mfaCode, setMfaCode] = useState(['', '', '', '', '', '']);
   const [selectedMethod, setSelectedMethod] = useState<'sms' | 'email' | 'app'>('app');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [mfaError, setMfaError] = useState(false);
+
+  const DEMO_CODE = '123456';
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,11 +34,18 @@ export function MultiFactorAuthView() {
   };
 
   const handleVerifyMfa = () => {
+    setMfaError(false);
     setIsVerifying(true);
     setTimeout(() => {
       setIsVerifying(false);
-      setStep('success');
-    }, 1500);
+      if (mfaCode.join('') === DEMO_CODE) {
+        setStep('success');
+      } else {
+        setMfaError(true);
+        setMfaCode(['', '', '', '', '', '']);
+        document.getElementById('mfa-0')?.focus();
+      }
+    }, 1000);
   };
 
   const isCodeComplete = mfaCode.every(digit => digit !== '');
@@ -193,6 +203,12 @@ export function MultiFactorAuthView() {
                 />
               ))}
             </div>
+            {mfaError && (
+              <div className="flex items-center gap-2 mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                Invalid verification code. Please try again.
+              </div>
+            )}
             <button
               onClick={handleVerifyMfa}
               disabled={!isCodeComplete || isVerifying}
@@ -200,6 +216,7 @@ export function MultiFactorAuthView() {
             >
               {isVerifying ? 'Verifying...' : 'Verify and Login'}
             </button>
+            <p className="text-center text-xs text-gray-400 mt-3">Demo hint: correct code is <strong>123456</strong></p>
           </div>
 
           <div className="text-center">

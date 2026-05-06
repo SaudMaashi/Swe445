@@ -1,171 +1,162 @@
 import { useState } from 'react';
-import { Lock, Check, X, Eye, EyeOff, AlertCircle, Shield } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+
+const s = {
+  wrap: { padding: '36px 40px' },
+  header: { marginBottom: 28 },
+  label: { display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 },
+  title: { fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 },
+  subtitle: { fontSize: '0.85rem', color: 'var(--muted)', marginTop: 4 },
+  banner: { background: 'var(--accent-light)', border: '1px solid oklch(88% 0.06 35)', borderRadius: 8, padding: '12px 16px', marginBottom: 28, fontSize: '0.82rem', color: 'var(--accent)', fontWeight: 600 },
+  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 40 },
+  fieldLabel: { display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--ink-2)', marginBottom: 6 },
+  inputWrap: { position: 'relative' as const },
+  input: {
+    width: '100%', padding: '10px 40px 10px 12px',
+    border: '1.5px solid var(--border)', borderRadius: 8,
+    fontSize: '0.9rem', color: 'var(--ink)', background: 'var(--canvas)',
+    outline: 'none', transition: 'border-color 0.15s, box-shadow 0.15s',
+    fontFamily: 'inherit',
+  },
+  eyeBtn: { position: 'absolute' as const, right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--subtle)', cursor: 'pointer', padding: 2, display: 'flex' },
+  divider: { height: 1, background: 'var(--border)', margin: '24px 0' },
+  reqRow: (met: boolean) => ({
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '9px 12px', borderRadius: 7,
+    background: met ? 'var(--sage-light)' : 'var(--surface)',
+    border: `1px solid ${met ? 'oklch(82% 0.07 155)' : 'var(--border)'}`,
+    marginBottom: 6, transition: 'all 0.2s',
+  }),
+  dot: (met: boolean) => ({
+    width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: met ? 'var(--sage)' : 'var(--border)',
+    fontSize: '0.65rem', color: 'white', fontWeight: 800,
+  }),
+  reqText: (met: boolean) => ({ fontSize: '0.83rem', color: met ? 'var(--sage)' : 'var(--muted)', fontWeight: met ? 600 : 400 }),
+  btn: (enabled: boolean) => ({
+    width: '100%', padding: '11px', borderRadius: 8, border: 'none',
+    background: enabled ? 'var(--ink)' : 'var(--surface)',
+    color: enabled ? 'var(--canvas)' : 'var(--subtle)',
+    fontSize: '0.9rem', fontWeight: 700,
+    cursor: enabled ? 'pointer' : 'not-allowed',
+    transition: 'all 0.15s', marginTop: 20,
+  }),
+  infoCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px', marginTop: 20 },
+  infoRow: { display: 'flex', gap: 8, fontSize: '0.8rem', color: 'var(--ink-2)', marginBottom: 6, lineHeight: 1.4 },
+  sectionLabel: { fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 },
+};
 
 export function EncryptPasswordsView() {
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [showCf, setShowCf] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [done, setDone] = useState(false);
 
-  const passwordRequirements = [
-    { id: 1, text: 'At least 8 characters', met: password.length >= 8 },
-    { id: 2, text: 'Contains uppercase letter', met: /[A-Z]/.test(password) },
-    { id: 3, text: 'Contains lowercase letter', met: /[a-z]/.test(password) },
-    { id: 4, text: 'Contains number', met: /[0-9]/.test(password) },
-    { id: 5, text: 'Contains special character', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
+  const reqs = [
+    { text: 'At least 8 characters',        met: password.length >= 8 },
+    { text: 'Contains uppercase letter',     met: /[A-Z]/.test(password) },
+    { text: 'Contains lowercase letter',     met: /[a-z]/.test(password) },
+    { text: 'Contains number',               met: /[0-9]/.test(password) },
+    { text: 'Contains special character',    met: /[!@#$%^&*(),.?":{}|<>]/.test(password) },
   ];
-
-  const allRequirementsMet = passwordRequirements.every((req) => req.met);
-  const passwordsMatch = password === confirmPassword && password.length > 0;
+  const allMet = reqs.every(r => r.met);
+  const matches = password === confirm && password.length > 0;
+  const canSubmit = allMet && matches && !processing;
 
   const handleEncrypt = () => {
-    if (allRequirementsMet && passwordsMatch) {
-      setIsProcessing(true);
-      setTimeout(() => {
-        setIsProcessing(false);
-        alert('Password encrypted and stored securely using bcrypt hashing with salt!');
-      }, 1500);
-    }
+    if (!canSubmit) return;
+    setProcessing(true);
+    setTimeout(() => { setProcessing(false); setDone(true); }, 1400);
   };
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-indigo-100 p-3 rounded-lg">
-          <Lock className="w-6 h-6 text-indigo-600" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Password Encryption</h2>
-          <p className="text-gray-600">Implements AUTH-05: Secure Password Storage</p>
-        </div>
+    <div style={s.wrap}>
+      <div style={s.header}>
+        <div style={s.label}>Feature 1 of 4 · AUTH-05</div>
+        <h2 style={s.title}>Password Encryption</h2>
+        <p style={s.subtitle}>Mitigates MUC-01: Steal Login Credentials</p>
       </div>
 
-      {/* Mitigation Info */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <Shield className="w-5 h-5 text-indigo-600 mt-0.5" />
+      <div style={s.banner}>
+        Passwords are stored as bcrypt hashes with a per-user salt — even if the database is compromised, plaintext passwords cannot be retrieved.
+      </div>
+
+      {done ? (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--sage-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '1.8rem' }}>✓</div>
+          <p style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--ink)', marginBottom: 6 }}>Password Encrypted &amp; Stored</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 24 }}>Stored as bcrypt hash with random salt (AUTH-05)</p>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 20px', display: 'inline-block', fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--ink-2)', letterSpacing: '0.02em' }}>
+            $2b$12$eW8XnAR…[hash truncated]
+          </div>
+          <br />
+          <button onClick={() => { setDone(false); setPassword(''); setConfirm(''); }} style={{ marginTop: 20, background: 'none', border: 'none', color: 'var(--accent)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>← Try another password</button>
+        </div>
+      ) : (
+        <div style={s.grid}>
           <div>
-            <p className="font-semibold text-indigo-900 mb-1">Mitigation Strategy</p>
-            <p className="text-sm text-indigo-700">
-              This control mitigates <strong>MUC-01: Steal Login Credentials</strong> by using bcrypt hashing 
-              with salt to securely store passwords. Even if an attacker accesses the database, they cannot 
-              retrieve plaintext passwords.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Password Input Section */}
-        <div>
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Create Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Enter your password"
-              />
-              <button
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <div className="relative">
-              <input
-                type={showConfirm ? 'text' : 'password'}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                placeholder="Confirm your password"
-              />
-              <button
-                onClick={() => setShowConfirm(!showConfirm)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-              >
-                {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-              </button>
-            </div>
-            {confirmPassword && !passwordsMatch && (
-              <div className="flex items-center gap-2 mt-2 text-red-600">
-                <AlertCircle className="w-4 h-4" />
-                <span className="text-sm">Passwords do not match</span>
+            <p style={s.sectionLabel}>Create password</p>
+            <div style={{ marginBottom: 16 }}>
+              <label style={s.fieldLabel}>Password</label>
+              <div style={s.inputWrap}>
+                <input
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  style={s.input}
+                  onFocus={e => { e.target.style.borderColor = 'var(--ink)'; e.target.style.boxShadow = '0 0 0 3px oklch(20% 0.022 42 / 0.07)'; }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                />
+                <button style={s.eyeBtn} onClick={() => setShowPw(!showPw)} type="button">
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-            )}
-            {passwordsMatch && (
-              <div className="flex items-center gap-2 mt-2 text-green-600">
-                <Check className="w-4 h-4" />
-                <span className="text-sm">Passwords match</span>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={s.fieldLabel}>Confirm Password</label>
+              <div style={s.inputWrap}>
+                <input
+                  type={showCf ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  placeholder="Confirm password"
+                  style={{ ...s.input, borderColor: confirm && !matches ? 'var(--red)' : matches ? 'var(--sage)' : 'var(--border)' }}
+                  onFocus={e => { e.target.style.boxShadow = '0 0 0 3px oklch(20% 0.022 42 / 0.07)'; }}
+                  onBlur={e => { e.target.style.boxShadow = 'none'; }}
+                />
+                <button style={s.eyeBtn} onClick={() => setShowCf(!showCf)} type="button">
+                  {showCf ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-            )}
+              {confirm && !matches && <p style={{ fontSize: '0.75rem', color: 'var(--red)', marginTop: 5 }}>Passwords do not match</p>}
+              {matches && <p style={{ fontSize: '0.75rem', color: 'var(--sage)', marginTop: 5 }}>✓ Passwords match</p>}
+            </div>
+            <button onClick={handleEncrypt} disabled={!canSubmit} style={s.btn(canSubmit)}>
+              {processing ? 'Encrypting…' : 'Encrypt &amp; Store Password'}
+            </button>
           </div>
 
-          <button
-            onClick={handleEncrypt}
-            disabled={!allRequirementsMet || !passwordsMatch || isProcessing}
-            className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
-            {isProcessing ? 'Encrypting Password...' : 'Encrypt and Store Password'}
-          </button>
-        </div>
-
-        {/* Password Requirements */}
-        <div>
-          <h3 className="font-semibold text-gray-900 mb-4">Password Requirements (AUTH-03)</h3>
-          <div className="space-y-3">
-            {passwordRequirements.map((req) => (
-              <div
-                key={req.id}
-                className={`flex items-center gap-3 p-3 rounded-lg border ${
-                  req.met
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div
-                  className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                    req.met ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                >
-                  {req.met ? (
-                    <Check className="w-4 h-4 text-white" />
-                  ) : (
-                    <X className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <span className={req.met ? 'text-green-700 font-medium' : 'text-gray-600'}>
-                  {req.text}
-                </span>
+          <div>
+            <p style={s.sectionLabel}>Requirements (AUTH-03)</p>
+            {reqs.map((r, i) => (
+              <div key={i} style={s.reqRow(r.met)}>
+                <div style={s.dot(r.met)}>{r.met ? '✓' : '✗'}</div>
+                <span style={s.reqText(r.met)}>{r.text}</span>
               </div>
             ))}
-          </div>
-
-          {/* Encryption Info */}
-          <div className="mt-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-            <h4 className="font-semibold text-gray-900 mb-2">Encryption Method</h4>
-            <div className="space-y-2 text-sm text-gray-700">
-              <p>• <strong>Algorithm:</strong> bcrypt with salt</p>
-              <p>• <strong>Security Requirement:</strong> AUTH-05</p>
-              <p>• <strong>Protection:</strong> Hashing prevents plaintext storage</p>
-              <p>• <strong>Salt:</strong> Random per-user salt prevents rainbow table attacks</p>
+            <div style={s.infoCard}>
+              <p style={{ ...s.sectionLabel, marginBottom: 10 }}>Encryption method</p>
+              <div style={s.infoRow}><span style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>Algorithm:</span> bcrypt with random salt</div>
+              <div style={s.infoRow}><span style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>Requirement:</span> AUTH-05</div>
+              <div style={s.infoRow}><span style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>Protection:</span> Rainbow table &amp; brute-force resistant</div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

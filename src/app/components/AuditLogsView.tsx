@@ -1,389 +1,164 @@
 import { useState } from 'react';
-import { FileText, Shield, Search, Filter, AlertTriangle, Eye, Edit, Trash2, CheckCircle } from 'lucide-react';
+import { Search } from 'lucide-react';
 
-interface AuditLog {
-  id: string;
-  timestamp: string;
-  userId: string;
-  userName: string;
-  userRole: string;
-  action: string;
-  resourceType: string;
-  resourceId: string;
-  result: 'success' | 'denied' | 'suspicious';
-  ipAddress: string;
-  details: string;
+interface Log {
+  id: string; ts: string; userId: string; userName: string; role: string;
+  action: string; resourceType: string; resourceId: string;
+  result: 'success' | 'denied' | 'suspicious'; ip: string; details: string;
 }
 
+const logs: Log[] = [
+  { id:'LOG-001', ts:'2026-04-04 14:23:15', userId:'U001', userName:'Dr. Sarah Johnson',  role:'doctor',        action:'VIEW_MEDICAL_RECORD',    resourceType:'Medical Record',   resourceId:'R001', result:'success',    ip:'192.168.1.100', details:'Accessed assigned patient record (AUTHZ-02)' },
+  { id:'LOG-002', ts:'2026-04-04 14:20:45', userId:'U002', userName:'Ahmad Al-Rashid',    role:'patient',       action:'LOGIN',                  resourceType:'Authentication',   resourceId:'N/A',  result:'success',    ip:'192.168.1.105', details:'Successful login with valid credentials (AUTH-01)' },
+  { id:'LOG-003', ts:'2026-04-04 14:18:30', userId:'U004', userName:'Dr. Mohammed Ali',   role:'doctor',        action:'VIEW_MEDICAL_RECORD',    resourceType:'Medical Record',   resourceId:'R001', result:'denied',     ip:'192.168.1.102', details:'Attempted to access non-assigned patient record (AUTHZ-02 violation)' },
+  { id:'LOG-004', ts:'2026-04-04 14:15:22', userId:'U001', userName:'Dr. Sarah Johnson',  role:'doctor',        action:'UPDATE_MEDICAL_RECORD',  resourceType:'Medical Record',   resourceId:'R003', result:'success',    ip:'192.168.1.100', details:'Updated patient medical information (INT-01, INT-02)' },
+  { id:'LOG-005', ts:'2026-04-04 14:12:10', userId:'UNKN', userName:'Unknown User',       role:'unknown',       action:'LOGIN_FAILED',           resourceType:'Authentication',   resourceId:'N/A',  result:'suspicious', ip:'203.45.67.89',  details:'Multiple failed login attempts detected — potential brute force (AUTH-04)' },
+  { id:'LOG-006', ts:'2026-04-04 14:10:05', userId:'U003', userName:'Admin Team',         role:'administrator', action:'SUBMIT_INSURANCE_CLAIM', resourceType:'Insurance Claim',  resourceId:'IC-045',result:'success',   ip:'192.168.1.200', details:'Insurance claim submitted successfully (AUD-01)' },
+  { id:'LOG-007', ts:'2026-04-04 14:05:30', userId:'U005', userName:'Malicious Insider',  role:'staff',         action:'UPDATE_MEDICAL_RECORD',  resourceType:'Medical Record',   resourceId:'R002', result:'suspicious', ip:'192.168.1.150', details:'Abnormal record modification detected — data integrity alert (INT-04)' },
+];
+
+const resultStyle = (r: string) => {
+  if (r === 'success')    return { bg: 'var(--sage-light)',   color: 'var(--sage)',   label: 'Success' };
+  if (r === 'denied')     return { bg: 'var(--red-light)',    color: 'var(--red)',    label: 'Denied' };
+  return                         { bg: 'var(--amber-light)',  color: 'var(--amber)',  label: 'Suspicious' };
+};
+
 export function AuditLogsView() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'success' | 'denied' | 'suspicious'>('all');
-  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'success' | 'denied' | 'suspicious'>('all');
+  const [selected, setSelected] = useState<Log | null>(null);
 
-  const auditLogs: AuditLog[] = [
-    {
-      id: 'LOG-001',
-      timestamp: '2026-04-04 14:23:15',
-      userId: 'U001',
-      userName: 'Dr. Sarah Johnson',
-      userRole: 'doctor',
-      action: 'VIEW_MEDICAL_RECORD',
-      resourceType: 'Medical Record',
-      resourceId: 'R001',
-      result: 'success',
-      ipAddress: '192.168.1.100',
-      details: 'Accessed assigned patient record (AUTHZ-02)',
-    },
-    {
-      id: 'LOG-002',
-      timestamp: '2026-04-04 14:20:45',
-      userId: 'U002',
-      userName: 'Ahmad Al-Rashid',
-      userRole: 'patient',
-      action: 'LOGIN',
-      resourceType: 'Authentication',
-      resourceId: 'N/A',
-      result: 'success',
-      ipAddress: '192.168.1.105',
-      details: 'Successful login with valid credentials (AUTH-01)',
-    },
-    {
-      id: 'LOG-003',
-      timestamp: '2026-04-04 14:18:30',
-      userId: 'U004',
-      userName: 'Dr. Mohammed Ali',
-      userRole: 'doctor',
-      action: 'VIEW_MEDICAL_RECORD',
-      resourceType: 'Medical Record',
-      resourceId: 'R001',
-      result: 'denied',
-      ipAddress: '192.168.1.102',
-      details: 'Attempted to access non-assigned patient record (AUTHZ-02 violation)',
-    },
-    {
-      id: 'LOG-004',
-      timestamp: '2026-04-04 14:15:22',
-      userId: 'U001',
-      userName: 'Dr. Sarah Johnson',
-      userRole: 'doctor',
-      action: 'UPDATE_MEDICAL_RECORD',
-      resourceType: 'Medical Record',
-      resourceId: 'R003',
-      result: 'success',
-      ipAddress: '192.168.1.100',
-      details: 'Updated patient medical information (INT-01, INT-02)',
-    },
-    {
-      id: 'LOG-005',
-      timestamp: '2026-04-04 14:12:10',
-      userId: 'UNKNOWN',
-      userName: 'Unknown User',
-      userRole: 'unknown',
-      action: 'LOGIN_FAILED',
-      resourceType: 'Authentication',
-      resourceId: 'N/A',
-      result: 'suspicious',
-      ipAddress: '203.45.67.89',
-      details: 'Multiple failed login attempts detected - potential brute force attack (AUTH-04)',
-    },
-    {
-      id: 'LOG-006',
-      timestamp: '2026-04-04 14:10:05',
-      userId: 'U003',
-      userName: 'Admin Team',
-      userRole: 'administrator',
-      action: 'SUBMIT_INSURANCE_CLAIM',
-      resourceType: 'Insurance Claim',
-      resourceId: 'IC-045',
-      result: 'success',
-      ipAddress: '192.168.1.200',
-      details: 'Insurance claim submitted successfully (AUD-01)',
-    },
-    {
-      id: 'LOG-007',
-      timestamp: '2026-04-04 14:05:30',
-      userId: 'U005',
-      userName: 'Malicious Insider',
-      userRole: 'staff',
-      action: 'UPDATE_MEDICAL_RECORD',
-      resourceType: 'Medical Record',
-      resourceId: 'R002',
-      result: 'suspicious',
-      ipAddress: '192.168.1.150',
-      details: 'Abnormal record modification detected - data integrity alert (INT-04)',
-    },
-  ];
-
-  const filteredLogs = auditLogs.filter(log => {
-    const matchesSearch = 
-      log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.resourceId.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterStatus === 'all' || log.result === filterStatus;
-    
-    return matchesSearch && matchesFilter;
+  const filtered = logs.filter(l => {
+    const q = search.toLowerCase();
+    const matchSearch = l.userName.toLowerCase().includes(q) || l.action.toLowerCase().includes(q) || l.resourceId.toLowerCase().includes(q);
+    return matchSearch && (filter === 'all' || l.result === filter);
   });
 
-  const getStatusIcon = (result: string) => {
-    switch (result) {
-      case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case 'denied':
-        return <AlertTriangle className="w-5 h-5 text-red-600" />;
-      case 'suspicious':
-        return <AlertTriangle className="w-5 h-5 text-amber-600" />;
-      default:
-        return null;
-    }
-  };
-
-  const getActionIcon = (action: string) => {
-    if (action.includes('VIEW')) return <Eye className="w-4 h-4" />;
-    if (action.includes('UPDATE')) return <Edit className="w-4 h-4" />;
-    if (action.includes('DELETE')) return <Trash2 className="w-4 h-4" />;
-    return <FileText className="w-4 h-4" />;
-  };
-
-  const suspiciousCount = auditLogs.filter(log => log.result === 'suspicious').length;
+  const suspCount = logs.filter(l => l.result === 'suspicious').length;
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-indigo-100 p-3 rounded-lg">
-          <FileText className="w-6 h-6 text-indigo-600" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Audit Logs & Activity Monitoring</h2>
-          <p className="text-gray-600">Implements AUD-01, AUD-02, AUD-03, AUD-04, AUD-05</p>
-        </div>
+    <div style={{ padding: '36px 40px' }}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>Feature 4 of 4 · AUD-01–05</div>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 }}>Audit Logs &amp; Activity Monitoring</h2>
+        <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: 4 }}>Mitigates MUC-03 &amp; MUC-04: Record Tampering &amp; Fake Insurance Claims</p>
       </div>
 
-      {/* Mitigation Info */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <Shield className="w-5 h-5 text-indigo-600 mt-0.5" />
-          <div>
-            <p className="font-semibold text-indigo-900 mb-1">Mitigation Strategy</p>
-            <p className="text-sm text-indigo-700">
-              This control mitigates <strong>MUC-03: Modify Medical Records</strong> and{' '}
-              <strong>MUC-04: Submit Fake Insurance Claim</strong> by maintaining comprehensive audit logs 
-              of all system activities. Administrators can review logs for suspicious activity and detect 
-              unauthorized modifications.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Suspicious Activity Alert */}
-      {suspiciousCount > 0 && (
-        <div className="bg-amber-50 border-2 border-amber-500 rounded-lg p-4 mb-6">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-6 h-6 text-amber-600 mt-0.5" />
-            <div className="flex-1">
-              <p className="font-semibold text-amber-900 mb-1">Security Alert (AUD-05)</p>
-              <p className="text-sm text-amber-800">
-                {suspiciousCount} suspicious {suspiciousCount === 1 ? 'activity' : 'activities'} detected. 
-                Administrator review required.
-              </p>
-            </div>
-          </div>
+      {/* Suspicious alert */}
+      {suspCount > 0 && (
+        <div style={{ background: 'var(--amber-light)', border: '1.5px solid oklch(82% 0.08 75)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: '1rem' }}>⚠️</span>
+          <p style={{ fontSize: '0.82rem', color: 'var(--amber)', fontWeight: 700, margin: 0 }}>
+            {suspCount} suspicious {suspCount === 1 ? 'activity' : 'activities'} detected — administrator review required (AUD-05)
+          </p>
         </div>
       )}
 
-      {/* Search and Filter */}
-      <div className="grid md:grid-cols-2 gap-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      {/* Search + filter */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 16 }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--subtle)' }} />
           <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by user, action, or resource..."
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by user, action, or resource…"
+            style={{ width: '100%', padding: '9px 12px 9px 34px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.85rem', color: 'var(--ink)', background: 'var(--canvas)', outline: 'none', fontFamily: 'inherit' }}
           />
         </div>
-
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
-          >
-            <option value="all">All Status</option>
-            <option value="success">Success Only</option>
-            <option value="denied">Denied Only</option>
-            <option value="suspicious">Suspicious Only</option>
-          </select>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['all', 'success', 'denied', 'suspicious'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              style={{ padding: '8px 12px', borderRadius: 7, border: `1.5px solid ${filter === f ? 'var(--border-strong)' : 'var(--border)'}`, background: filter === f ? 'var(--canvas)' : 'transparent', fontSize: '0.75rem', fontWeight: 600, color: filter === f ? 'var(--ink)' : 'var(--muted)', cursor: 'pointer', textTransform: 'capitalize' as const }}
+            >
+              {f}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Audit Logs Table */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden mb-6">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Timestamp</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">User</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Action</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Resource</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">IP Address</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredLogs.map((log) => (
-                <tr
-                  key={log.id}
-                  className={`hover:bg-gray-50 ${
-                    log.result === 'suspicious' ? 'bg-amber-50' :
-                    log.result === 'denied' ? 'bg-red-50' : ''
-                  }`}
-                >
-                  <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{log.timestamp}</td>
-                  <td className="px-4 py-3 text-sm">
-                    <div>
-                      <p className="font-medium text-gray-900">{log.userName}</p>
-                      <p className="text-xs text-gray-600 capitalize">{log.userRole}</p>
-                    </div>
+      {/* Table */}
+      <div style={{ background: 'var(--canvas)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' as const }}>
+          <thead>
+            <tr style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
+              {['Timestamp', 'User', 'Action', 'Resource', 'Status', 'IP Address', ''].map(h => (
+                <th key={h} style={{ padding: '10px 14px', textAlign: 'left' as const, fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.06em', whiteSpace: 'nowrap' as const }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={7} style={{ padding: '32px', textAlign: 'center' as const, fontSize: '0.85rem', color: 'var(--subtle)' }}>No results found</td></tr>
+            ) : filtered.map(l => {
+              const rs = resultStyle(l.result);
+              return (
+                <tr key={l.id} style={{ borderBottom: '1px solid var(--border)', background: l.result === 'suspicious' ? 'oklch(97.5% 0.015 75)' : l.result === 'denied' ? 'oklch(98.5% 0.01 25)' : 'transparent' }}>
+                  <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: 'var(--ink-2)', whiteSpace: 'nowrap' as const, fontFamily: 'monospace' }}>{l.ts}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <p style={{ margin: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--ink)' }}>{l.userName}</p>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--muted)', textTransform: 'capitalize' as const }}>{l.role}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex items-center gap-2">
-                      {getActionIcon(log.action)}
-                      <span className="text-gray-900">{log.action.replace(/_/g, ' ')}</span>
-                    </div>
+                  <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: 'var(--ink-2)', whiteSpace: 'nowrap' as const }}>{l.action.replace(/_/g, ' ')}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--ink-2)' }}>{l.resourceType}</p>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--muted)', fontFamily: 'monospace' }}>{l.resourceId}</p>
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div>
-                      <p className="text-gray-900">{log.resourceType}</p>
-                      <p className="text-xs text-gray-600">{log.resourceId}</p>
-                    </div>
+                  <td style={{ padding: '10px 14px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, background: rs.bg, color: rs.color, padding: '3px 8px', borderRadius: 5, textTransform: 'capitalize' as const }}>{rs.label}</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon(log.result)}
-                      <span className={`text-sm font-medium capitalize ${
-                        log.result === 'success' ? 'text-green-700' :
-                        log.result === 'denied' ? 'text-red-700' :
-                        'text-amber-700'
-                      }`}>
-                        {log.result}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-gray-600 font-mono">{log.ipAddress}</td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setSelectedLog(log)}
-                      className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
-                    >
-                      View Details
+                  <td style={{ padding: '10px 14px', fontSize: '0.75rem', color: 'var(--muted)', fontFamily: 'monospace' }}>{l.ip}</td>
+                  <td style={{ padding: '10px 14px' }}>
+                    <button onClick={() => setSelected(selected?.id === l.id ? null : l)} style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                      {selected?.id === l.id ? 'Close' : 'Details'}
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {/* Selected Log Details */}
-      {selectedLog && (
-        <div className="bg-gray-50 border-2 border-indigo-500 rounded-lg p-6">
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-bold text-gray-900">Log Details - {selectedLog.id}</h3>
-            <button
-              onClick={() => setSelectedLog(null)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
+      {/* Detail panel */}
+      {selected && (
+        <div style={{ background: 'var(--canvas)', border: '1.5px solid var(--border-strong)', borderRadius: 10, padding: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+            <p style={{ fontWeight: 800, color: 'var(--ink)', margin: 0, fontSize: '0.95rem' }}>Log Details — {selected.id}</p>
+            <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>✕</button>
           </div>
-
-          <div className="grid md:grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Event Information</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Timestamp (AUD-03):</span>
-                  <span className="font-medium text-gray-900">{selectedLog.timestamp}</span>
+              <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 10 }}>Event</p>
+              {[['Timestamp (AUD-03)', selected.ts], ['User ID (AUD-02)', selected.userId], ['User Name', selected.userName], ['Role', selected.role]].map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 7, gap: 16 }}>
+                  <span style={{ color: 'var(--muted)' }}>{k}</span>
+                  <span style={{ color: 'var(--ink)', fontWeight: 600, textAlign: 'right' as const, fontFamily: k.includes('ID') || k.includes('Timestamp') ? 'monospace' : 'inherit' }}>{v}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">User ID (AUD-02):</span>
-                  <span className="font-medium text-gray-900">{selectedLog.userId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">User Name:</span>
-                  <span className="font-medium text-gray-900">{selectedLog.userName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Role:</span>
-                  <span className="font-medium text-gray-900 capitalize">{selectedLog.userRole}</span>
-                </div>
-              </div>
+              ))}
             </div>
-
             <div>
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Action Details</h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Action (AUD-01):</span>
-                  <span className="font-medium text-gray-900">{selectedLog.action.replace(/_/g, ' ')}</span>
+              <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 10 }}>Action</p>
+              {[['Action (AUD-01)', selected.action.replace(/_/g,' ')], ['Resource', selected.resourceType], ['Resource ID', selected.resourceId], ['IP Address', selected.ip]].map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: 7, gap: 16 }}>
+                  <span style={{ color: 'var(--muted)' }}>{k}</span>
+                  <span style={{ color: 'var(--ink)', fontWeight: 600, textAlign: 'right' as const, fontFamily: k.includes('IP') || k.includes('ID') ? 'monospace' : 'inherit' }}>{v}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Resource Type:</span>
-                  <span className="font-medium text-gray-900">{selectedLog.resourceType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Resource ID:</span>
-                  <span className="font-medium text-gray-900">{selectedLog.resourceId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">IP Address:</span>
-                  <span className="font-medium text-gray-900 font-mono">{selectedLog.ipAddress}</span>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-
-          <div className="mt-4 pt-4 border-t border-gray-300">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">Details</h4>
-            <p className="text-sm text-gray-700 bg-white p-3 rounded border border-gray-200">
-              {selectedLog.details}
-            </p>
+          <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+            <p style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Details</p>
+            <p style={{ fontSize: '0.82rem', color: 'var(--ink-2)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', margin: 0 }}>{selected.details}</p>
           </div>
-
-          {selectedLog.result === 'suspicious' && (
-            <div className="mt-4 bg-amber-100 border border-amber-300 rounded-lg p-3">
-              <p className="text-sm font-semibold text-amber-900 mb-1">⚠️ Administrative Action Required</p>
-              <p className="text-sm text-amber-800">
-                This suspicious activity requires review. Administrator should investigate and take appropriate action (AUD-04, AUD-05).
-              </p>
+          {selected.result === 'suspicious' && (
+            <div style={{ marginTop: 12, background: 'var(--amber-light)', border: '1px solid oklch(82% 0.08 75)', borderRadius: 7, padding: '12px 14px' }}>
+              <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--amber)', margin: 0 }}>⚠ Administrative action required (AUD-04, AUD-05) — investigate and take appropriate action.</p>
             </div>
           )}
         </div>
       )}
-
-      {/* Audit Requirements */}
-      <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="font-semibold text-gray-900 mb-3">Audit & Accountability Requirements</h4>
-        <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-700">
-          <div className="space-y-2">
-            <p>• <strong>AUD-01:</strong> Log all user activities (login, access, updates)</p>
-            <p>• <strong>AUD-02:</strong> Record user identity accessing patient records</p>
-            <p>• <strong>AUD-03:</strong> Timestamp all system transactions</p>
-          </div>
-          <div className="space-y-2">
-            <p>• <strong>AUD-04:</strong> Administrators can review logs for suspicious activity</p>
-            <p>• <strong>AUD-05:</strong> Alert administrators of suspicious behavior</p>
-            <p>• <strong>INT-02:</strong> Maintain version history of record changes</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

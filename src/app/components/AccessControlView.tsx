@@ -1,278 +1,185 @@
 import { useState } from 'react';
-import { Users, Shield, Lock, Check, X, AlertTriangle } from 'lucide-react';
 
-interface User {
-  id: string;
-  name: string;
-  role: 'patient' | 'doctor' | 'administrator' | 'insurance';
-  email: string;
+interface User { id: string; name: string; role: 'patient' | 'doctor' | 'administrator' | 'insurance'; email: string; }
+interface Record { id: string; patientName: string; patientId: string; assignedDoctor: string; updated: string; }
+
+const users: User[] = [
+  { id: '1', name: 'Dr. Sarah Johnson',  role: 'doctor',        email: 'sarah.johnson@asshifa.com' },
+  { id: '2', name: 'Ahmad Al-Rashid',    role: 'patient',       email: 'ahmad.rashid@email.com' },
+  { id: '3', name: 'Admin Team',         role: 'administrator', email: 'admin@asshifa.com' },
+  { id: '4', name: 'Dr. Mohammed Ali',   role: 'doctor',        email: 'mohammed.ali@asshifa.com' },
+];
+
+const records: Record[] = [
+  { id: 'R001', patientName: 'Ahmad Al-Rashid', patientId: '2', assignedDoctor: 'Dr. Sarah Johnson',  updated: '2026-04-03' },
+  { id: 'R002', patientName: 'Fatima Hassan',   patientId: '5', assignedDoctor: 'Dr. Mohammed Ali',   updated: '2026-04-02' },
+  { id: 'R003', patientName: 'Omar Khalid',     patientId: '6', assignedDoctor: 'Dr. Sarah Johnson',  updated: '2026-04-01' },
+];
+
+function checkAccess(user: User, rec: Record): { granted: boolean; reason: string } {
+  if (user.role === 'administrator') return { granted: true, reason: 'Administrator has full access (AUTHZ-04)' };
+  if (user.role === 'patient') {
+    return user.id === rec.patientId
+      ? { granted: true, reason: 'Patient viewing own medical record (AUTHZ-03)' }
+      : { granted: false, reason: 'Patients can only view their own records (CONF-03)' };
+  }
+  if (user.role === 'doctor') {
+    return rec.assignedDoctor === user.name
+      ? { granted: true, reason: 'Doctor accessing assigned patient record (AUTHZ-02)' }
+      : { granted: false, reason: 'Doctors can only access their assigned patients (AUTHZ-02)' };
+  }
+  return { granted: false, reason: 'Unauthorized access attempt (CONF-03)' };
 }
 
-interface MedicalRecord {
-  id: string;
-  patientName: string;
-  patientId: string;
-  assignedDoctor: string;
-  lastUpdated: string;
-}
+const roleColor = (role: string) => {
+  if (role === 'doctor') return { bg: 'oklch(93% 0.02 230)', color: 'oklch(40% 0.12 230)' };
+  if (role === 'patient') return { bg: 'var(--sage-light)', color: 'var(--sage)' };
+  if (role === 'administrator') return { bg: 'var(--accent-light)', color: 'var(--accent)' };
+  return { bg: 'var(--surface)', color: 'var(--muted)' };
+};
+
+const s = {
+  wrap: { padding: '36px 40px' },
+  label: { display: 'block', fontSize: '0.75rem', fontWeight: 700 as const, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 },
+  title: { fontSize: '1.4rem', fontWeight: 800 as const, letterSpacing: '-0.02em', color: 'var(--ink)', margin: 0 },
+  subtitle: { fontSize: '0.85rem', color: 'var(--muted)', marginTop: 4 },
+  banner: { background: 'var(--accent-light)', border: '1px solid oklch(88% 0.06 35)', borderRadius: 8, padding: '12px 16px', marginBottom: 28, fontSize: '0.82rem', color: 'var(--accent)', fontWeight: 600 as const },
+  sectionLabel: { fontSize: '0.7rem', fontWeight: 700 as const, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 12 },
+  selBtn: (active: boolean) => ({
+    width: '100%', padding: '12px 14px', textAlign: 'left' as const,
+    background: active ? 'var(--canvas)' : 'transparent',
+    border: `1.5px solid ${active ? 'var(--border-strong)' : 'var(--border)'}`,
+    borderRadius: 8, cursor: 'pointer', marginBottom: 8,
+    transition: 'all 0.15s',
+    boxShadow: active ? '0 1px 6px oklch(20% 0.022 42 / 0.05)' : 'none',
+    position: 'relative' as const,
+  }),
+};
 
 export function AccessControlView() {
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedRecord, setSelectedRecord] = useState<MedicalRecord | null>(null);
-  const [accessAttempt, setAccessAttempt] = useState<'granted' | 'denied' | null>(null);
+  const [selUser, setSelUser] = useState<User | null>(null);
+  const [selRecord, setSelRecord] = useState<Record | null>(null);
+  const [result, setResult] = useState<{ granted: boolean; reason: string } | null>(null);
 
-  const users: User[] = [
-    { id: '1', name: 'Dr. Sarah Johnson', role: 'doctor', email: 'sarah.johnson@asshifa.com' },
-    { id: '2', name: 'Ahmad Al-Rashid', role: 'patient', email: 'ahmad.rashid@email.com' },
-    { id: '3', name: 'Admin Team', role: 'administrator', email: 'admin@asshifa.com' },
-    { id: '4', name: 'Dr. Mohammed Ali', role: 'doctor', email: 'mohammed.ali@asshifa.com' },
-  ];
-
-  const medicalRecords: MedicalRecord[] = [
-    { id: 'R001', patientName: 'Ahmad Al-Rashid', patientId: '2', assignedDoctor: 'Dr. Sarah Johnson', lastUpdated: '2026-04-03' },
-    { id: 'R002', patientName: 'Fatima Hassan', patientId: '5', assignedDoctor: 'Dr. Mohammed Ali', lastUpdated: '2026-04-02' },
-    { id: 'R003', patientName: 'Omar Khalid', patientId: '6', assignedDoctor: 'Dr. Sarah Johnson', lastUpdated: '2026-04-01' },
-  ];
-
-  const checkAccess = (user: User, record: MedicalRecord) => {
-    // AUTHZ-01: Role-based access control
-    if (user.role === 'administrator') {
-      return { granted: true, reason: 'Administrator has full access (AUTHZ-04)' };
-    }
-
-    // AUTHZ-03: Patients can only view their own records
-    if (user.role === 'patient') {
-      if (user.id === record.patientId) {
-        return { granted: true, reason: 'Patient viewing own record (AUTHZ-03)' };
-      } else {
-        return { granted: false, reason: 'Patient can only view their own records (CONF-03)' };
-      }
-    }
-
-    // AUTHZ-02: Doctors can only access records of assigned patients
-    if (user.role === 'doctor') {
-      if (record.assignedDoctor === user.name) {
-        return { granted: true, reason: 'Doctor accessing assigned patient record (AUTHZ-02)' };
-      } else {
-        return { granted: false, reason: 'Doctor can only access assigned patient records (AUTHZ-02)' };
-      }
-    }
-
-    return { granted: false, reason: 'Unauthorized access attempt (CONF-03)' };
-  };
-
-  const handleAccessRequest = () => {
-    if (selectedUser && selectedRecord) {
-      const result = checkAccess(selectedUser, selectedRecord);
-      setAccessAttempt(result.granted ? 'granted' : 'denied');
-      
-      // Log the access attempt (AUD-02, AUD-03)
-      console.log({
-        timestamp: new Date().toISOString(),
-        user: selectedUser.name,
-        userId: selectedUser.id,
-        action: 'VIEW_MEDICAL_RECORD',
-        recordId: selectedRecord.id,
-        result: result.granted ? 'GRANTED' : 'DENIED',
-        reason: result.reason,
-      });
+  const handleRequest = () => {
+    if (selUser && selRecord) {
+      const r = checkAccess(selUser, selRecord);
+      setResult(r);
+      console.log({ timestamp: new Date().toISOString(), user: selUser.name, role: selUser.role, record: selRecord.id, result: r.granted ? 'GRANTED' : 'DENIED', reason: r.reason });
     }
   };
-
-  const getAccessResult = () => {
-    if (selectedUser && selectedRecord) {
-      return checkAccess(selectedUser, selectedRecord);
-    }
-    return null;
-  };
-
-  const accessResult = getAccessResult();
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="bg-indigo-100 p-3 rounded-lg">
-          <Users className="w-6 h-6 text-indigo-600" />
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Access Control System</h2>
-          <p className="text-gray-600">Implements AUTHZ-01, AUTHZ-02, AUTHZ-03: Role-Based Access Control</p>
-        </div>
+    <div style={s.wrap}>
+      <div style={{ marginBottom: 28 }}>
+        <div style={s.label}>Feature 3 of 4 · AUTHZ-01–04</div>
+        <h2 style={s.title}>Access Control (RBAC)</h2>
+        <p style={s.subtitle}>Mitigates MUC-02: Access Medical Records Illegally</p>
       </div>
 
-      {/* Mitigation Info */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-6">
-        <div className="flex items-start gap-3">
-          <Shield className="w-5 h-5 text-indigo-600 mt-0.5" />
-          <div>
-            <p className="font-semibold text-indigo-900 mb-1">Mitigation Strategy</p>
-            <p className="text-sm text-indigo-700">
-              This control mitigates <strong>MUC-02: Access Medical Records Illegally</strong> by implementing 
-              strict role-based access control (RBAC). Users can only access records they are authorized to view 
-              based on their role and assignment.
-            </p>
-          </div>
-        </div>
+      <div style={s.banner}>
+        Role-based access control ensures users can only access records they are authorized for — doctors see only their assigned patients, patients see only their own records.
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
-        {/* User Selection */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 20 }}>
+        {/* User selection */}
         <div>
-          <h3 className="font-semibold text-gray-900 mb-3">1. Select User</h3>
-          <div className="space-y-2">
-            {users.map((user) => (
-              <button
-                key={user.id}
-                onClick={() => {
-                  setSelectedUser(user);
-                  setAccessAttempt(null);
-                }}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                  selectedUser?.id === user.id
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    user.role === 'doctor' ? 'bg-blue-100' :
-                    user.role === 'patient' ? 'bg-green-100' :
-                    user.role === 'administrator' ? 'bg-purple-100' :
-                    'bg-orange-100'
-                  }`}>
-                    <Users className={`w-5 h-5 ${
-                      user.role === 'doctor' ? 'text-blue-600' :
-                      user.role === 'patient' ? 'text-green-600' :
-                      user.role === 'administrator' ? 'text-purple-600' :
-                      'text-orange-600'
-                    }`} />
+          <p style={s.sectionLabel}>1. Select user</p>
+          {users.map(u => {
+            const rc = roleColor(u.role);
+            const active = selUser?.id === u.id;
+            return (
+              <button key={u.id} style={s.selBtn(active)} onClick={() => { setSelUser(u); setResult(null); }}>
+                {active && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'var(--accent)', borderRadius: '8px 0 0 8px' }} />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: rc.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 800, color: rc.color, flexShrink: 0 }}>
+                    {u.name.split(' ').map(w => w[0]).join('').slice(0, 2)}
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{user.name}</p>
-                    <p className="text-sm text-gray-600 capitalize">{user.role}</p>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ink)', margin: 0, marginBottom: 2 }}>{u.name}</p>
+                    <span style={{ fontSize: '0.68rem', fontWeight: 600, background: rc.bg, color: rc.color, padding: '1px 7px', borderRadius: 4, textTransform: 'capitalize' as const }}>{u.role}</span>
                   </div>
-                  {selectedUser?.id === user.id && (
-                    <Check className="w-5 h-5 text-indigo-600" />
-                  )}
+                  {active && <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 700 }}>✓</span>}
                 </div>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {/* Record Selection */}
+        {/* Record selection */}
         <div>
-          <h3 className="font-semibold text-gray-900 mb-3">2. Select Medical Record</h3>
-          <div className="space-y-2">
-            {medicalRecords.map((record) => (
-              <button
-                key={record.id}
-                onClick={() => {
-                  setSelectedRecord(record);
-                  setAccessAttempt(null);
-                }}
-                className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                  selectedRecord?.id === record.id
-                    ? 'border-indigo-600 bg-indigo-50'
-                    : 'border-gray-200 hover:border-indigo-300'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Lock className="w-5 h-5 text-gray-600" />
+          <p style={s.sectionLabel}>2. Select medical record</p>
+          {records.map(r => {
+            const active = selRecord?.id === r.id;
+            return (
+              <button key={r.id} style={s.selBtn(active)} onClick={() => { setSelRecord(r); setResult(null); }}>
+                {active && <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: 'var(--accent)', borderRadius: '8px 0 0 8px' }} />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800, color: 'var(--muted)', flexShrink: 0 }}>{r.id}</div>
+                  <div>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--ink)', margin: 0, marginBottom: 2 }}>{r.patientName}</p>
+                    <p style={{ fontSize: '0.72rem', color: 'var(--muted)', margin: 0 }}>Dr: {r.assignedDoctor} · {r.updated}</p>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900">{record.id} - {record.patientName}</p>
-                    <p className="text-sm text-gray-600">Assigned: {record.assignedDoctor}</p>
-                    <p className="text-xs text-gray-500">Updated: {record.lastUpdated}</p>
-                  </div>
-                  {selectedRecord?.id === record.id && (
-                    <Check className="w-5 h-5 text-indigo-600" />
-                  )}
+                  {active && <span style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 700, marginLeft: 'auto' }}>✓</span>}
                 </div>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
 
-      {/* Access Request Button */}
-      <div className="mb-6">
-        <button
-          onClick={handleAccessRequest}
-          disabled={!selectedUser || !selectedRecord}
-          className="w-full bg-indigo-600 text-white py-4 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-        >
-          Request Access to Medical Record
-        </button>
-      </div>
+      <button
+        onClick={handleRequest}
+        disabled={!selUser || !selRecord}
+        style={{ width: '100%', padding: '12px', borderRadius: 8, border: 'none', background: selUser && selRecord ? 'var(--ink)' : 'var(--surface)', color: selUser && selRecord ? 'var(--canvas)' : 'var(--subtle)', fontSize: '0.9rem', fontWeight: 700, cursor: selUser && selRecord ? 'pointer' : 'not-allowed', marginBottom: 20 }}
+      >
+        Request Access to Medical Record
+      </button>
 
-      {/* Access Result */}
-      {accessResult && (
-        <div className={`border-2 rounded-lg p-6 ${
-          accessResult.granted
-            ? 'bg-green-50 border-green-500'
-            : 'bg-red-50 border-red-500'
-        }`}>
-          <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-              accessResult.granted ? 'bg-green-500' : 'bg-red-500'
-            }`}>
-              {accessResult.granted ? (
-                <Check className="w-7 h-7 text-white" />
-              ) : (
-                <X className="w-7 h-7 text-white" />
-              )}
+      {result && (
+        <div style={{ background: result.granted ? 'var(--sage-light)' : 'var(--red-light)', border: `1.5px solid ${result.granted ? 'oklch(82% 0.07 155)' : 'oklch(82% 0.07 25)'}`, borderRadius: 10, padding: '20px 24px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: result.granted ? 'var(--sage)' : 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '1.1rem', flexShrink: 0 }}>
+              {result.granted ? '✓' : '✗'}
             </div>
-            <div className="flex-1">
-              <h3 className={`text-xl font-bold mb-2 ${
-                accessResult.granted ? 'text-green-900' : 'text-red-900'
-              }`}>
-                {accessResult.granted ? 'Access Granted' : 'Access Denied'}
-              </h3>
-              <p className={`mb-4 ${
-                accessResult.granted ? 'text-green-800' : 'text-red-800'
-              }`}>
-                {accessResult.reason}
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '1.1rem', fontWeight: 800, color: result.granted ? 'var(--sage)' : 'var(--red)', margin: 0, marginBottom: 4 }}>
+                Access {result.granted ? 'Granted' : 'Denied'}
               </p>
-              
-              {accessResult.granted ? (
-                <div className="bg-white border border-green-200 rounded-lg p-4">
-                  <p className="text-sm text-green-800 mb-2">
-                    <strong>Access Logged:</strong>
-                  </p>
-                  <div className="text-sm text-gray-700 space-y-1">
-                    <p>• User: {selectedUser?.name} ({selectedUser?.role})</p>
-                    <p>• Record: {selectedRecord?.id} - {selectedRecord?.patientName}</p>
-                    <p>• Timestamp: {new Date().toLocaleString()} (AUD-03)</p>
-                    <p>• Action: VIEW_MEDICAL_RECORD (AUD-02)</p>
+              <p style={{ fontSize: '0.83rem', color: 'var(--ink-2)', margin: 0, marginBottom: 14 }}>{result.reason}</p>
+              <div style={{ background: 'var(--canvas)', border: '1px solid var(--border)', borderRadius: 7, padding: '12px 14px' }}>
+                {result.granted ? (
+                  <div>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 8 }}>Access logged (AUD-02, AUD-03)</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--ink-2)', margin: 0, lineHeight: 1.7 }}>User: {selUser?.name} ({selUser?.role})<br />Record: {selRecord?.id} — {selRecord?.patientName}<br />Time: {new Date().toLocaleString()}<br />Action: VIEW_MEDICAL_RECORD</p>
                   </div>
-                </div>
-              ) : (
-                <div className="bg-white border border-red-200 rounded-lg p-4">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-                    <div className="text-sm text-red-800">
-                      <p className="font-semibold mb-1">Security Alert (AUD-05)</p>
-                      <p>This unauthorized access attempt has been logged and will be reviewed by administrators.</p>
-                    </div>
+                ) : (
+                  <div>
+                    <p style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 6 }}>⚠ Security Alert (AUD-05)</p>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--ink-2)', margin: 0 }}>This unauthorized access attempt has been logged and flagged for administrator review.</p>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* RBAC Rules */}
-      <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="font-semibold text-gray-900 mb-3">Role-Based Access Control Rules</h4>
-        <div className="space-y-2 text-sm text-gray-700">
-          <p>• <strong>Patients (AUTHZ-03):</strong> Can only view their own medical records</p>
-          <p>• <strong>Doctors (AUTHZ-02):</strong> Can access records of patients assigned to them</p>
-          <p>• <strong>Administrators (AUTHZ-04):</strong> Have full access to all records</p>
-          <p>• <strong>Data Privacy (CONF-03):</strong> Unauthorized users cannot view patient records</p>
+      {/* RBAC rules summary */}
+      <div style={{ marginTop: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 20px' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.07em', marginBottom: 10 }}>RBAC Rules</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 24px' }}>
+          {[
+            ['AUTHZ-03', 'Patients — own records only'],
+            ['AUTHZ-02', 'Doctors — assigned patients only'],
+            ['AUTHZ-04', 'Administrators — full access'],
+            ['CONF-03', 'Others — denied &amp; logged'],
+          ].map(([id, text]) => (
+            <div key={id} style={{ display: 'flex', gap: 8, fontSize: '0.8rem' }}>
+              <span style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>{id}</span>
+              <span style={{ color: 'var(--ink-2)' }} dangerouslySetInnerHTML={{ __html: text }} />
+            </div>
+          ))}
         </div>
       </div>
     </div>

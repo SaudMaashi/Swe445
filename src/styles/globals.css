@@ -1,0 +1,44 @@
+/* design tokens */
+:root {
+  --canvas:        oklch(99% 0.004 42);
+  --paper:         oklch(97.5% 0.008 42);
+  --surface:       oklch(95.5% 0.011 42);
+  --surface-2:     oklch(93% 0.014 42);
+  --border:        oklch(88.5% 0.015 42);
+  --border-strong: oklch(80% 0.019 42);
+  --ink:           oklch(20% 0.022 42);
+  --ink-2:         oklch(37% 0.019 42);
+  --muted:         oklch(57% 0.015 42);
+  --subtle:        oklch(73% 0.011 42);
+  --accent:        oklch(52% 0.155 35);
+  --accent-hover:  oklch(46% 0.148 35);
+  --accent-light:  oklch(95.5% 0.038 35);
+  --sage:          oklch(58% 0.13 155);
+  --sage-light:    oklch(95.5% 0.036 155);
+  --amber:         oklch(62% 0.14 75);
+  --amber-light:   oklch(96% 0.030 75);
+  --red:           oklch(55% 0.18 25);
+  --red-light:     oklch(96% 0.030 25);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+
+body {
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  margin: 0;
+}
+
+/* scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+/* base inputs */
+input, select, textarea {
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+}
+button { font-family: 'Hanken Grotesk', system-ui, sans-serif; cursor: pointer; }
